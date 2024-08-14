@@ -150,7 +150,7 @@ class Printer
             . $this->printAttributes($hook->getAttributes())
             . $hook->getName()
             . $params
-            . " => {\n" . $this->indent($body) . "}\n";
+            . " {\n" . $this->indent($body) . "}\n";
     }
 
 
