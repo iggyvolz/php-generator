@@ -104,32 +104,54 @@ class Printer
 	}
 
 
-	public function printMethod(Method $method, ?PhpNamespace $namespace = null, bool $isInterface = false): string
-	{
-		$this->namespace = $this->resolveTypes ? $namespace : null;
-		$method->validate();
-		$line = ($method->isAbstract() && !$isInterface ? 'abstract ' : '')
-			. ($method->isFinal() ? 'final ' : '')
-			. ($method->getVisibility() ? $method->getVisibility() . ' ' : '')
-			. ($method->isStatic() ? 'static ' : '')
-			. 'function '
-			. ($method->getReturnReference() ? '&' : '')
-			. $method->getName();
-		$returnType = $this->printReturnType($method);
-		$params = $this->printParameters($method, strlen($line) + strlen($returnType) + strlen($this->indentation) + 2);
-		$body = Helpers::simplifyTaggedNames($method->getBody(), $this->namespace);
-		$body = ltrim(rtrim(Strings::normalize($body)) . "\n");
-		$braceOnNextLine = $this->isBraceOnNextLine(str_contains($params, "\n"), (bool) $returnType);
+    public function printMethod(Method $method, ?PhpNamespace $namespace = null, bool $isInterface = false): string
+    {
+        $this->namespace = $this->resolveTypes ? $namespace : null;
+        $method->validate();
+        $line = ($method->isAbstract() && !$isInterface ? 'abstract ' : '')
+            . ($method->isFinal() ? 'final ' : '')
+            . ($method->getVisibility() ? $method->getVisibility() . ' ' : '')
+            . ($method->isStatic() ? 'static ' : '')
+            . 'function '
+            . ($method->getReturnReference() ? '&' : '')
+            . $method->getName();
+        $returnType = $this->printReturnType($method);
+        $params = $this->printParameters($method, strlen($line) + strlen($returnType) + strlen($this->indentation) + 2);
+        $body = Helpers::simplifyTaggedNames($method->getBody(), $this->namespace);
+        $body = ltrim(rtrim(Strings::normalize($body)) . "\n");
+        $braceOnNextLine = $this->isBraceOnNextLine(str_contains($params, "\n"), (bool) $returnType);
 
-		return $this->printDocComment($method)
-			. $this->printAttributes($method->getAttributes())
-			. $line
-			. $params
-			. $returnType
-			. ($method->isAbstract() || $isInterface
-				? ";\n"
-				: ($braceOnNextLine ? "\n" : ' ') . "{\n" . $this->indent($body) . "}\n");
-	}
+        return $this->printDocComment($method)
+            . $this->printAttributes($method->getAttributes())
+            . $line
+            . $params
+            . $returnType
+            . ($method->isAbstract() || $isInterface
+                ? ";\n"
+                : ($braceOnNextLine ? "\n" : ' ') . "{\n" . $this->indent($body) . "}\n");
+    }
+
+
+    /**
+     * @param Hook[] $hooks
+     */
+    private function printHooks(array $hooks): string
+    {
+        return " {\n" . implode("\n", array_map(\Closure::fromCallable([$this, 'indent']), array_map(\Closure::fromCallable([$this, 'printHook']), $hooks))) . "\n}";
+    }
+    public function printHook(Hook $hook, ?PhpNamespace $namespace = null, bool $isInterface = false): string
+    {
+        $this->namespace = $this->resolveTypes ? $namespace : null;
+        $hook->validate();
+        $params = empty($hook->getParameters()) ? "" : $this->printParameters($hook, strlen($hook->getName()) + strlen(" => ") + strlen($this->indentation) + 2);
+        $body = Helpers::simplifyTaggedNames($hook->getBody(), $this->namespace);
+        $body = ltrim(rtrim(Strings::normalize($body)) . "\n");
+        return $this->printDocComment($hook)
+            . $this->printAttributes($hook->getAttributes())
+            . $hook->getName()
+            . $params
+            . " => {\n" . $this->indent($body) . "}\n";
+    }
 
 
 	public function printClass(
@@ -308,7 +330,7 @@ class Printer
 	}
 
 
-	protected function printParameters(Closure|GlobalFunction|Method $function, int $column = 0): string
+	protected function printParameters(Closure|GlobalFunction|Method|Hook $function, int $column = 0): string
 	{
 		$special = false;
 		foreach ($function->getParameters() as $param) {
@@ -327,7 +349,7 @@ class Printer
 	}
 
 
-	private function formatParameters(Closure|GlobalFunction|Method $function, bool $multiline): string
+	private function formatParameters(Closure|GlobalFunction|Method|Hook $function, bool $multiline): string
 	{
 		$params = $function->getParameters();
 		$res = '';
@@ -388,7 +410,7 @@ class Printer
 			. ($property->getValue() === null && !$property->isInitialized()
 				? ''
 				: ' = ' . $this->dump($property->getValue(), strlen($def) + 3)) // 3 = ' = '
-			. ";\n";
+			. (!empty($property->getHooks()) ? $this->printHooks($property->getHooks()) : ";") . "\n";
 	}
 
 

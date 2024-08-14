@@ -1,0 +1,13 @@
+class Test
+{
+	public $foo {
+		get => {
+			return $this->first . " " . $this->last;
+		}
+
+		set(string $value) => {
+			[$this->first, $this->last] = explode(' ', $value, 2);
+		}
+
+	}
+}

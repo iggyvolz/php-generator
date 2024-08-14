@@ -29,9 +29,13 @@ final class Property
 	private bool $nullable = false;
 	private bool $initialized = false;
 	private bool $readOnly = false;
+    /**
+     * @var Hook[]
+     */
+    private array $hooks = [];
 
 
-	public function setValue(mixed $val): static
+    public function setValue(mixed $val): static
 	{
 		$this->value = $val;
 		$this->initialized = true;
@@ -120,4 +124,23 @@ final class Property
 			throw new Nette\InvalidStateException("Property \$$this->name: Read-only properties are only supported on typed property.");
 		}
 	}
+
+    public function addHook(string $name, bool $overwrite = false): Hook
+    {
+        $lower = strtolower($name);
+        if (!$overwrite && isset($this->hooks[$lower])) {
+            throw new Nette\InvalidStateException("Cannot add hooks '$name', because it already exists.");
+        }
+        $hook = new Hook($name);
+
+        return $this->hooks[$lower] = $hook;
+    }
+
+    /**
+     * @return Hook[]
+     */
+    public function getHooks(): array
+    {
+        return $this->hooks;
+    }
 }
